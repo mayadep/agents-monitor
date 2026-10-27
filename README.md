@@ -18,6 +18,8 @@ index.html  대시보드 화면
 test/       테스트 (node 내장 test 러너)
 docs/       설계 문서
 plugin/agent-monitor/  터미널 사이드 패널 버전 (Claude Code 플러그인)
+agents/     역할별 서브에이전트 7개 (architect, collector, debugger, docs-writer, implementer, reviewer, tester)
+agent-rules/  에이전트 공통 규칙과 설계 문서 템플릿 (agent-rules/README.md 에 설명)
 ```
 
 `events/` 에는 질문 내용, 실행한 명령, 파일 경로가 기록되므로 `.gitignore` 로 제외합니다.
@@ -30,7 +32,19 @@ plugin/agent-monitor/  터미널 사이드 패널 버전 (Claude Code 플러그�
    git clone https://github.com/mayadep/agents-monitor.git ~/.claude/agent-dashboard
    ```
 
-2. `~/.claude/settings.json` 의 `hooks` 에 아래를 합칩니다. 기존 훅이 있으면 배열에 추가하세요.
+2. 에이전트와 공통 규칙을 `~/.claude/` 로 복사합니다. 대시보드는 `~/.claude/agents/` 에 있는 에이전트만 기록합니다.
+
+   ```
+   # bash (Git Bash, macOS, Linux)
+   cp -r ~/.claude/agent-dashboard/agents ~/.claude/agent-dashboard/agent-rules ~/.claude/
+
+   # PowerShell
+   Copy-Item -Recurse -Force "$HOME\.claude\agent-dashboard\agents", "$HOME\.claude\agent-dashboard\agent-rules" "$HOME\.claude\"
+   ```
+
+   이미 같은 이름의 에이전트가 있으면 덮어씁니다. 저장소의 `agents/` 를 고친 뒤에도 다시 복사해야 반영됩니다.
+
+3. `~/.claude/settings.json` 의 `hooks` 에 아래를 합칩니다. 기존 훅이 있으면 배열에 추가하세요.
 
    ```json
    {
@@ -49,7 +63,7 @@ plugin/agent-monitor/  터미널 사이드 패널 버전 (Claude Code 플러그�
 
    `SessionEnd` 만 동기 실행입니다. 세션이 닫히면서 기록이 끊기지 않게 하려는 것입니다.
 
-3. 서버를 띄우고 http://localhost:7777 을 엽니다.
+4. 서버를 띄우고 http://localhost:7777 을 엽니다.
 
    ```
    node ~/.claude/agent-dashboard/server.js        # 다른 포트: node server.js 7800

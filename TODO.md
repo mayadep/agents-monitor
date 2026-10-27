@@ -1,5 +1,9 @@
 # Agent Dashboard — 진행 상황 (2026-10-29 기준)
 
+## 다른 컴퓨터에서 처음 시작할 때
+- README.md 의 설치 1~4 (clone → agents/agent-rules 를 ~/.claude 로 복사 → settings.json 훅 → 서버)
+- 이 TODO.md 가 인수인계 문서. 이전 대화 기록과 메모리는 원래 컴퓨터에만 있음
+
 ## 실행
 - 서버: `node ~/.claude/agent-dashboard/server.js` → http://localhost:7777
   (Claude 세션을 끄면 서버도 꺼짐. 꺼져 있어도 훅은 events/ 에 계속 기록)
