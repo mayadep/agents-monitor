@@ -1,0 +1,11 @@
+# Recorded events hold prompts, commands and file paths: never commit them
+events/
+events.jsonl
+events.jsonl.migrated
+hook-errors.log
+state.json
+
+# Written by Claude Code when the plugin loads
+plugin/*/.claude-plugin/types/
+
+node_modules/

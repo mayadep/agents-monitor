@@ -1,0 +1,1 @@
+{ "name": "agent-monitor", "version": "0.1.0", "description": "A side pane showing the live status of the seven global subagents", "types": "./types/index.d.ts" }

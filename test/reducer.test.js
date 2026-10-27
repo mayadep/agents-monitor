@@ -1,0 +1,52 @@
+const fs = require('fs'), assert = require('assert')
+const html = fs.readFileSync(process.argv[2], 'utf8')
+const code = html.slice(html.indexOf('let AGENTS'), html.indexOf('// Writes an element'))
+const api = new Function(code + '; return { apply, view, get runs() { return runs }, reset() { runs = new Map(); events = []; sessions = new Map() } }')()
+const T = 1_000_000
+const ev = (o) => ({ session: 's1', agent_id: 'a1', agent_type: 'tester', ...o })
+const run = () => api.runs.get('a1')
+const check = (name, fn) => { api.reset(); try { fn(); console.log('PASS', name) } catch (e) { console.log('FAIL', name, e.message); process.exitCode = 1 } }
+
+check('Post before Pre: call closed, no open tool', () => {
+  api.apply(ev({ ts: T, event: 'SubagentStart' }))
+  api.apply(ev({ ts: T + 20, event: 'PostToolUse', tool: 'Bash', tool_use_id: 'c1' }))
+  api.apply(ev({ ts: T + 10, event: 'PreToolUse', tool: 'Bash', tool_use_id: 'c1', input: 'ls' }))
+  const v = api.view(run(), T + 30)
+  assert.equal(v.calls.length, 1); assert.equal(v.open, null); assert.equal(v.calls[0].input, 'ls')
+})
+check('late Pre after stop does not revive the run', () => {
+  api.apply(ev({ ts: T, event: 'SubagentStart' }))
+  api.apply(ev({ ts: T + 50, event: 'SubagentStop' }))
+  api.apply(ev({ ts: T + 40, event: 'PreToolUse', tool: 'Read', tool_use_id: 'c2' }))
+  const v = api.view(run(), T + 60)
+  assert.equal(v.status, 'completed'); assert.equal(v.open, null); assert.equal(v.end, T + 50)
+})
+check('parallel calls: failure lands on the right call', () => {
+  api.apply(ev({ ts: T, event: 'PreToolUse', tool: 'Bash', tool_use_id: 'x' }))
+  api.apply(ev({ ts: T + 1, event: 'PreToolUse', tool: 'Bash', tool_use_id: 'y' }))
+  api.apply(ev({ ts: T + 5, event: 'PostToolUseFailure', tool: 'Bash', tool_use_id: 'x', failed: true }))
+  const v = api.view(run(), T + 6)
+  assert.deepEqual(v.calls.map(c => c.failed), [true, false]); assert.equal(v.open.start, T + 1)
+})
+check('SessionEnd stops running runs of that session only', () => {
+  api.apply(ev({ ts: T, event: 'SubagentStart' }))
+  api.apply(ev({ ts: T, event: 'SubagentStart', agent_id: 'a2', session: 's2' }))
+  api.apply(ev({ ts: T + 5, event: 'SubagentStart', agent_id: 'a3' }))
+  api.apply(ev({ ts: T + 6, event: 'SubagentStop', agent_id: 'a3' }))
+  api.apply({ ts: T + 10, event: 'SessionEnd', session: 's1', reason: 'other' })
+  assert.equal(api.view(run(), T + 11).status, 'stopped')
+  assert.equal(api.view(api.runs.get('a2'), T + 11).status, 'running')
+  assert.equal(api.view(api.runs.get('a3'), T + 11).status, 'completed')
+})
+check('quiet for 15 min reads as stale, recovers on new event', () => {
+  api.apply(ev({ ts: T, event: 'SubagentStart' }))
+  assert.equal(api.view(run(), T + 15 * 60e3 + 1).status, 'stale')
+  api.apply(ev({ ts: T + 16 * 60e3, event: 'PreToolUse', tool: 'Bash', tool_use_id: 'z' }))
+  assert.equal(api.view(run(), T + 16 * 60e3 + 1).status, 'running')
+})
+check('Stop before Start keeps start time and completed status', () => {
+  api.apply(ev({ ts: T + 9, event: 'SubagentStop' }))
+  api.apply(ev({ ts: T, event: 'SubagentStart' }))
+  const v = api.view(run(), T + 10)
+  assert.equal(v.status, 'completed'); assert.equal(run().start, T)
+})
